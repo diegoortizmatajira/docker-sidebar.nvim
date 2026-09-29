@@ -3,13 +3,13 @@ local config = require("docker-sidebar.config")
 local nodes = require("docker-sidebar.sidebar.nodes")
 
 --- Builds a real NuiTree (nui.nvim only tracks parent/child ids once a node is attached to
---- one -- see nui/tree/init.lua's TreeNode:get_child_ids()) around `root_node` in a scratch
+--- one -- see nui/tree/init.lua's TreeNode:get_child_ids()) around `top_node` in a scratch
 --- buffer, so child structure can be inspected via `tree:get_node(id)`.
---- @param root_node NuiTree.Node
+--- @param top_node NuiTree.Node
 --- @return NuiTree tree, integer bufnr
-local function build_tree(root_node)
+local function build_tree(top_node)
 	local bufnr = vim.api.nvim_create_buf(false, true)
-	local tree = NuiTree({ bufnr = bufnr, nodes = { root_node } })
+	local tree = NuiTree({ bufnr = bufnr, nodes = { top_node } })
 	return tree, bufnr
 end
 
@@ -126,13 +126,18 @@ describe("node construction", function()
 		assert.is_nil(service_node.container_id)
 	end)
 
-	it("builds a root node with Deployments and Standalone Containers groups", function()
-		local root = nodes.new_root_node()
-		local _, bufnr = build_tree(root)
+	it("attaches Deployments and Standalone Containers directly as tree roots (no wrapping node)", function()
+		local deployments_node = nodes.new_deployments_group_node()
+		local standalone_node = nodes.new_standalone_group_node()
+		local bufnr = vim.api.nvim_create_buf(false, true)
+		local tree = NuiTree({ bufnr = bufnr, nodes = { deployments_node, standalone_node } })
 		table.insert(bufnrs, bufnr)
 
-		assert.are.equal("root", root.kind)
-		assert.are.equal(2, #root:get_child_ids())
+		assert.are.equal(2, #tree.nodes.root_ids)
+		assert.are.equal("deployments_group", deployments_node.kind)
+		assert.are.equal("standalone_group", standalone_node.kind)
+		assert.are.equal(1, deployments_node:get_depth())
+		assert.are.equal(1, standalone_node:get_depth())
 	end)
 end)
 
@@ -277,14 +282,59 @@ describe("nodes.build_command_spec", function()
 		end
 	end)
 
-	describe("group/root nodes", function()
-		local kinds =
-			{ "root", "deployments_group", "services_group", "networks_group", "volumes_group", "standalone_group" }
+	describe("group nodes", function()
+		local kinds = { "deployments_group", "services_group", "networks_group", "volumes_group", "standalone_group" }
 
-		it("no actions are supported on group or root nodes", function()
+		it("no actions are supported on group nodes", function()
 			for _, kind in ipairs(kinds) do
 				assert.is_nil(nodes.build_command_spec("start", { kind = kind, text = kind }))
 			end
 		end)
+	end)
+end)
+
+describe("nodes.supported_actions", function()
+	it("returns the exact action set for a deployment node", function()
+		assert.are.same({
+			up = true,
+			down = true,
+			start = true,
+			stop = true,
+			restart = true,
+			pause = true,
+			unpause = true,
+		}, nodes.supported_actions("deployment"))
+	end)
+
+	it("returns the exact action set for a service node", function()
+		assert.are.same({
+			start = true,
+			stop = true,
+			restart = true,
+			pause = true,
+			unpause = true,
+			remove = true,
+			logs = true,
+			exec = true,
+		}, nodes.supported_actions("service"))
+	end)
+
+	it("returns the exact action set for a container node", function()
+		assert.are.same({
+			start = true,
+			stop = true,
+			restart = true,
+			pause = true,
+			unpause = true,
+			remove = true,
+			logs = true,
+			exec = true,
+		}, nodes.supported_actions("container"))
+	end)
+
+	it("returns an empty set for network/volume/group kinds and nil", function()
+		for _, kind in ipairs({ "network", "volume", "deployments_group", "standalone_group", nil }) do
+			assert.are.same({}, nodes.supported_actions(kind))
+		end
 	end)
 end)

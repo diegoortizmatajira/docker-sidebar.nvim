@@ -65,6 +65,7 @@
 --- @field exec string[]
 --- @field up string[]
 --- @field down string[]
+--- @field help string[]
 
 --- @class DockerSidebar.ComposeConfig
 --- @field project_dirs string[]|fun(): string[] Workspace directories to scan for compose files

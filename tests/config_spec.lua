@@ -32,6 +32,7 @@ describe("config", function()
 				"remove",
 				"logs",
 				"exec",
+				"help",
 				"up",
 				"down",
 			}

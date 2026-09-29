@@ -4,6 +4,7 @@ local runner = require("docker-sidebar.runner")
 
 local NuiLine = require("nui.line")
 local NuiTree = require("nui.tree")
+local Popup = require("nui.popup")
 local Split = require("nui.split")
 
 local M = {
@@ -12,6 +13,29 @@ local M = {
 }
 
 local ACTIONS = { "start", "stop", "restart", "pause", "unpause", "remove", "logs", "exec", "up", "down" }
+
+local NAV_KEYS = { "toggle_expand", "expand", "collapse", "refresh", "refresh_all", "help", "quit" }
+local NAV_DESCRIPTIONS = {
+	toggle_expand = "Toggle expand/collapse",
+	expand = "Expand node",
+	collapse = "Collapse node",
+	refresh = "Refresh nearest ancestor",
+	refresh_all = "Refresh the whole tree",
+	help = "Show this help",
+	quit = "Close sidebar",
+}
+local ACTION_DESCRIPTIONS = {
+	start = "Start",
+	stop = "Stop",
+	restart = "Restart",
+	pause = "Pause",
+	unpause = "Unpause",
+	remove = "Remove (confirms)",
+	logs = "Logs (follow)",
+	exec = "Exec shell",
+	up = "Up (compose up -d)",
+	down = "Down (confirms)",
+}
 
 --- Attempt to refresh the nearest ancestor node with a refresh function, walking up from
 --- `node` (mirrors db-cli-adapter.nvim's sidebar `try_refresh`). Since group/deployment nodes
@@ -84,6 +108,72 @@ local function dispatch_action(action)
 	end
 end
 
+--- Builds the help window's contents: the always-available navigation keys, then the action
+--- keys that apply to the node under the cursor. When no node is focused (or its kind isn't
+--- recognized), every action is listed unfiltered.
+--- @param node DockerSidebar.SidebarNodeData|NuiTree.Node|nil
+--- @return string[] lines
+local function build_help_lines(node)
+	local kb = config.current.sidebar.keybindings
+	local lines = { "Navigation", "" }
+	for _, action in ipairs(NAV_KEYS) do
+		table.insert(lines, string.format("  %-10s %s", table.concat(kb[action], "/"), NAV_DESCRIPTIONS[action]))
+	end
+	table.insert(lines, "")
+	table.insert(lines, "Actions" .. (node and node.kind and (" (" .. node.kind .. ")") or ""))
+	table.insert(lines, "")
+
+	local supported = node and nodes.supported_actions(node.kind) or nil
+	local shown_any = false
+	for _, action in ipairs(ACTIONS) do
+		if not supported or supported[action] then
+			table.insert(lines, string.format("  %-10s %s", table.concat(kb[action], "/"), ACTION_DESCRIPTIONS[action]))
+			shown_any = true
+		end
+	end
+	if not shown_any then
+		table.insert(lines, "  (no actions apply to this node)")
+	end
+	return lines
+end
+
+--- Opens a floating help window listing the sidebar's keybindings, filtered to the node
+--- under the cursor. Closed with `q`/`<Esc>`.
+local function show_help()
+	local node = M.tree and M.tree:get_node()
+	local lines = build_help_lines(node)
+
+	local width = 30
+	for _, line in ipairs(lines) do
+		width = math.max(width, vim.fn.strdisplaywidth(line) + 2)
+	end
+	local height = math.min(#lines, vim.o.lines - 6)
+
+	local popup = Popup({
+		relative = "editor",
+		position = "50%",
+		size = { width = width, height = height },
+		border = {
+			style = "rounded",
+			text = { top = " DockerSidebar Help ", top_align = "center" },
+		},
+		buf_options = {
+			filetype = "docker-sidebar-help",
+		},
+		enter = true,
+	})
+	popup:mount()
+	vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
+	vim.bo[popup.bufnr].modifiable = false
+	vim.bo[popup.bufnr].readonly = true
+
+	local function close()
+		popup:unmount()
+	end
+	popup:map("n", "q", close, { noremap = true })
+	popup:map("n", "<Esc>", close, { noremap = true })
+end
+
 function M.init()
 	if not config.current then
 		vim.notify("DockerSidebar: Configuration not found.", vim.log.levels.ERROR)
@@ -92,10 +182,11 @@ function M.init()
 	M.split = Split({ relative = "editor", position = "right", size = "40%" })
 	M.split:mount()
 
-	nodes.root_node = nodes.new_root_node()
+	nodes.deployments_node = nodes.new_deployments_group_node()
+	nodes.standalone_node = nodes.new_standalone_group_node()
 	M.tree = NuiTree({
 		bufnr = M.split.bufnr,
-		nodes = { nodes.root_node },
+		nodes = { nodes.deployments_node, nodes.standalone_node },
 		prepare_node = function(node)
 			local line = NuiLine()
 			line:append(string.rep("  ", node:get_depth() - 1))
@@ -168,6 +259,9 @@ function M.init()
 			M.refresh()
 		end)
 	end
+	for _, key in ipairs(kb.help) do
+		M.split:map("n", key, show_help)
+	end
 	for _, action in ipairs(ACTIONS) do
 		for _, key in ipairs(kb[action]) do
 			M.split:map("n", key, function()
@@ -194,8 +288,10 @@ function M.refresh()
 	if not M.tree then
 		return
 	end
-	nodes.root_node:refresh(M.tree)
-	nodes.root_node:expand()
+	nodes.deployments_node:refresh(M.tree)
+	nodes.standalone_node:refresh(M.tree)
+	nodes.deployments_node:expand()
+	nodes.standalone_node:expand()
 	M.tree:render()
 end
 

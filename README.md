@@ -97,21 +97,20 @@ require('docker-sidebar').setup({
     -- Icons used in the sidebar (per node kind, plus per container/service status)
     icons = {
         tree = {
-            chevron_open = ' ', chevron_closed = ' ',
-            deployments_group = ' ', standalone_group = ' ',
+            chevron_open = ' ', chevron_closed = ' ',
+            deployments_group = ' ', standalone_group = ' ',
             deployment = '󰡨 ',
-            services_group = ' ', networks_group = '󰛳 ', volumes_group = '󰆺 ',
-            service = ' ', container = ' ',
+            services_group = ' ', networks_group = '󰛳 ', volumes_group = '󰆺 ',
             network = '󰛳 ', volume = '󰆺 ',
         },
-        status = { running = '●', stopped = '○', paused = '⏸', restarting = '↻', other = '?' },
+        status = { running = '● ', stopped = '○ ', paused = '⏸ ', restarting = '↻ ', other = '? ' },
     },
 
     -- Highlight groups for sidebar nodes and status icons
     highlight = {
         tree = {
             chevron = '@constant', default_icon = '@symbol', folder = '@symbol',
-            deployment = '@type', service = '@function', container = '@function',
+            deployment = '@type',
             network = '@macro', volume = '@macro',
         },
         status = {
@@ -205,21 +204,24 @@ Networks and volumes are informational nodes in this version — no actions yet.
 ### Tree shape
 
 ```
- Docker
-├──  Deployments
-│   ├──  project-a (running)
-│   │   ├──  Services
-│   │   │   ├──  web (running)
-│   │   │   └──  db (stopped)
-│   │   ├──  Networks
-│   │   │   └──  project-a_default
-│   │   └──  Volumes
-│   │       └──  project-a_db-data
-│   └──  project-b (down — from compose file, never started)
-└──  Standalone Containers
-    ├──  some-container (running)
-    └──  another-container (paused)
+ Deployments
+├──  project-a (running)
+│   ├──  Services
+│   │   ├──  web (running)
+│   │   └──  db (stopped)
+│   ├──  Networks
+│   │   └──  project-a_default
+│   └──  Volumes
+│       └──  project-a_db-data
+└──  project-b (down — from compose file, never started)
+
+ Standalone Containers
+├──  some-container (running)
+└──  another-container (paused)
 ```
+
+Deployments and Standalone Containers are two independent top-level groups — there's no
+enclosing "Docker" root node, since the whole sidebar is already Docker-specific.
 
 ### Health check
 

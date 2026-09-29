@@ -4,12 +4,14 @@ local docker_core = require("docker-sidebar.docker_core")
 
 local M = {
 	--- @type DockerSidebar.SidebarNodeData|NuiTree.Node|nil
-	root_node = nil,
+	deployments_node = nil,
+	--- @type DockerSidebar.SidebarNodeData|NuiTree.Node|nil
+	standalone_node = nil,
 }
 
 --- @class DockerSidebar.SidebarNodeData
 --- @field id string The unique identifier for the node
---- @field kind "root"|"deployments_group"|"deployment"|"services_group"|"service"|"networks_group"|"network"|"volumes_group"|"volume"|"standalone_group"|"container"
+--- @field kind "deployments_group"|"deployment"|"services_group"|"service"|"networks_group"|"network"|"volumes_group"|"volume"|"standalone_group"|"container"
 --- @field icon? string The icon to display next to the node
 --- @field icon_hl? string The highlight group for the icon
 --- @field text string The display text for the node
@@ -270,22 +272,6 @@ function M.new_standalone_group_node()
 	})
 end
 
---- @return DockerSidebar.SidebarNodeData|NuiTree.Node
-function M.new_root_node()
-	local deployments_node = M.new_deployments_group_node()
-	local standalone_node = M.new_standalone_group_node()
-	return M.new_node({
-		id = "root",
-		kind = "root",
-		text = "Docker",
-		expandable = true,
-		refresh = function(self, tree)
-			deployments_node:refresh(tree)
-			standalone_node:refresh(tree)
-		end,
-	}, { deployments_node, standalone_node })
-end
-
 --- Builds the shell-exec spec shared by service and standalone container `exec` actions:
 --- tries `sh` first, falling back to `bash` when `sh` isn't on the container's PATH.
 --- @param cmd string[] The exec invocation up to (not including) the shell command itself
@@ -519,6 +505,24 @@ function M.build_command_spec(action, node)
 		return nil
 	end
 	return builder(node)
+end
+
+--- Returns the set of actions supported for a given node kind, without needing a real node
+--- (unlike `build_command_spec`, which needs populated fields like `project`/`service` to
+--- build a working spec). Used by the sidebar's `?` help window to show only the actions
+--- that apply to the node under the cursor.
+--- @param kind string|nil
+--- @return table<string, boolean> actions Set of supported action names (action -> true)
+function M.supported_actions(kind)
+	local kind_builders = kind and builders[kind]
+	if not kind_builders then
+		return {}
+	end
+	local actions = {}
+	for action in pairs(kind_builders) do
+		actions[action] = true
+	end
+	return actions
 end
 
 return M

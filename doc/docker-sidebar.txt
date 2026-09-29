@@ -1,0 +1,81 @@
+*docker-sidebar.txt*  Docker Compose sidebar with a pluggable command runner
+
+==============================================================================
+CONTENTS                                            *docker-sidebar-contents*
+
+  1. Introduction ..................... |docker-sidebar-introduction|
+  2. Setup ............................. |docker-sidebar-setup|
+  3. Commands .......................... |docker-sidebar-commands|
+  4. Keybindings ........................ |docker-sidebar-keybindings|
+  5. Health ............................. |docker-sidebar-health|
+
+==============================================================================
+1. Introduction                                *docker-sidebar-introduction*
+
+docker-sidebar.nvim gives you a toggleable sidebar for browsing Docker
+Compose deployments (with their services, networks, and volumes) and
+standalone containers, with actions -- start/stop/restart/pause/unpause/
+remove/logs/exec, plus deployment-level up/down -- right from the tree.
+
+Command execution is pluggable: use the built-in default, delegate to
+overseer.nvim, or hand it off to your own runner. See the plugin's README
+for the full `setup()` reference (all options, including the three runner
+modes).
+
+==============================================================================
+2. Setup                                              *docker-sidebar-setup*
+
+The plugin works out of the box: >lua
+
+    require('docker-sidebar').setup({})
+<
+All options (`runner`, `compose`, `sidebar`, `icons`, `highlight`) are
+documented with examples in the README.
+
+==============================================================================
+3. Commands                                        *docker-sidebar-commands*
+
+                                                      *:DockerSidebarToggle*
+:DockerSidebarToggle            Toggle the Docker sidebar.
+
+                                                     *:DockerSidebarRefresh*
+:DockerSidebarRefresh           Refresh the whole tree.
+
+==============================================================================
+4. Keybindings                                  *docker-sidebar-keybindings*
+
+Once the sidebar is open, press `?` to open a floating help window listing
+the keybindings that apply to the node under the cursor. Default keys
+(all configurable via `sidebar.keybindings` in |docker-sidebar-setup|):
+
+    t / <CR>   Toggle expand/collapse
+    o          Expand node
+    c          Collapse node
+    q          Close sidebar
+    r          Refresh nearest ancestor
+    R          Refresh the whole tree
+    ?          Show the contextual help window
+
+    s          Start                 (deployment, service, container)
+    S          Stop                  (deployment, service, container)
+    x          Restart               (deployment, service, container)
+    p          Pause                 (deployment, service, container)
+    P          Unpause               (deployment, service, container)
+    d          Remove (confirms)     (service, container)
+    l          Logs (follow)         (service, container)
+    e          Exec shell            (service, container)
+    u          Up (compose up -d)    (deployment)
+    U          Down (confirms)       (deployment)
+
+Pressing an action key on a node that doesn't support it (e.g. `u`/`U` on a
+service node, or any action on a network/volume node) shows a warning
+instead of doing nothing silently.
+
+==============================================================================
+5. Health                                            *docker-sidebar-health*
+
+Run `:checkhealth docker-sidebar` to verify that `docker`, the Compose v2
+plugin, and nui.nvim are available, and whether overseer.nvim is installed.
+
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:
