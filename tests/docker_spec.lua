@@ -123,4 +123,23 @@ describe("docker", function()
 			assert.are.equal(0, count)
 		end)
 	end)
+
+	describe("inspect_network / inspect_volume", function()
+		it("returns the pretty-printed inspect output split into lines", function()
+			stub_system({
+				["docker network inspect myapp_default"] = {
+					stdout = '[\n    {\n        "Name": "myapp_default"\n    }\n]',
+				},
+			})
+			local lines = docker.inspect_network("myapp_default")
+			assert.are.same({ "[", "    {", '        "Name": "myapp_default"', "    }", "]" }, lines)
+		end)
+
+		it("returns nil when the command fails", function()
+			stub_system({
+				["docker volume inspect missing"] = { code = 1, stderr = "no such volume" },
+			})
+			assert.is_nil(docker.inspect_volume("missing"))
+		end)
+	end)
 end)

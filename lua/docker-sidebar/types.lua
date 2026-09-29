@@ -65,6 +65,8 @@
 --- @field exec string[]
 --- @field up string[]
 --- @field down string[]
+--- @field edit string[]
+--- @field inspect string[]
 --- @field help string[]
 
 --- @class DockerSidebar.ComposeConfig

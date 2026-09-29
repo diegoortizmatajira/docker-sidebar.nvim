@@ -22,6 +22,8 @@ local M = {
 --- @field service? string Compose service name, present on service nodes
 --- @field container_id? string The container id, present on container nodes once created
 --- @field cwd? string The deployment's compose-file directory, present on deployment/service nodes
+--- @field config_file? string The deployment's compose file path, present on deployment nodes when known
+--- @field docker_name? string The real Docker object name for `docker network/volume inspect`, present on network/volume nodes
 --- @field state? "running"|"stopped"|"paused"|"restarting"|"other" Container status, present on container nodes
 --- @field refresh? fun(self: DockerSidebar.SidebarNodeData|NuiTree.Node, tree: NuiTree): nil A function to refresh the node's contents
 
@@ -145,6 +147,7 @@ function M.new_network_node(network)
 		text = network.compose_name or network.name,
 		description = network.name,
 		project = network.project,
+		docker_name = network.name,
 	})
 end
 
@@ -177,6 +180,7 @@ function M.new_volume_node(volume)
 		text = volume.compose_name or volume.name,
 		description = volume.name,
 		project = volume.project,
+		docker_name = volume.name,
 	})
 end
 
@@ -228,6 +232,7 @@ function M.new_deployment_node(deployment)
 		description = string.format("(%s)", deployment.state),
 		project = deployment.project,
 		cwd = deployment.cwd,
+		config_file = deployment.config_file,
 		expandable = true,
 		refresh = function(self, tree)
 			local updated = find_deployment(deployment.project)
@@ -241,6 +246,8 @@ function M.new_deployment_node(deployment)
 				M.new_volumes_group_node(updated),
 			}, self:get_id())
 			self.description = string.format("(%s)", updated.state)
+			self.config_file = updated.config_file
+			self.cwd = updated.cwd
 			self:expand()
 			tree:render()
 			vim.notify(string.format("'%s' refreshed successfully", deployment.project), vim.log.levels.INFO)
@@ -385,6 +392,15 @@ local builders = {
 				cwd = n.cwd,
 				task_name = ("Unpause %s"):format(n.project),
 				mode = "background",
+			}
+		end,
+		logs = function(n)
+			return {
+				cmd = "docker",
+				args = { "compose", "-p", n.project, "logs", "-f" },
+				cwd = n.cwd,
+				task_name = ("Logs: %s"):format(n.project),
+				mode = "interactive",
 			}
 		end,
 	},

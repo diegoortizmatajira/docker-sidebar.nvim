@@ -186,20 +186,26 @@ Once the sidebar is open, the following keys are available (configurable via
 | `q`            | Close sidebar          | —                                     |
 | `r`            | Refresh nearest ancestor | any node                           |
 | `R`            | Refresh the whole tree | —                                     |
+| `?`            | Show contextual help window | —                                |
 | `s`            | Start                  | deployment, service, container        |
 | `S`            | Stop                   | deployment, service, container        |
 | `x`            | Restart                | deployment, service, container        |
 | `p`            | Pause                  | deployment, service, container        |
 | `P`            | Unpause                | deployment, service, container        |
 | `d`            | Remove (confirms)      | service, container                    |
-| `l`            | Logs (follow)          | service, container                    |
+| `l`            | Logs (follow)          | deployment, service, container         |
 | `e`            | Exec shell             | service, container                    |
 | `u`            | Up (`compose up -d`)   | deployment                            |
 | `U`            | Down (confirms)        | deployment                            |
+| `E`            | Open compose file in the main window | deployment              |
+| `i`            | Inspect (view JSON) in the main window | network, volume       |
 
 Pressing an action key on a node that doesn't support it (e.g. `u`/`U` on a service node, or
-any action on a network/volume node) shows a warning instead of doing nothing silently.
-Networks and volumes are informational nodes in this version — no actions yet.
+`i` on anything but a network/volume node) shows a warning instead of doing nothing silently.
+
+`l` (logs) follows every service's output at once when pressed on a deployment node
+(`docker compose logs -f`); press it on a service or container instead to follow just that
+one.
 
 ### Tree shape
 
@@ -238,8 +244,6 @@ Run `:checkhealth docker-sidebar` to verify that `docker`, the Compose v2 plugin
 
 ## Known limitations / deferred
 
-- Networks and volumes are read-only in this version — an `inspect` action (dumping
-  `docker network/volume inspect` JSON into a scratch buffer) is a natural fast-follow.
 - No support for remote Docker contexts (`DOCKER_HOST`) yet.
 - A project directory with multiple compose files is resolved via whichever file
   `compose.project_dirs`'s scan finds first with that project name; multi-file-per-project

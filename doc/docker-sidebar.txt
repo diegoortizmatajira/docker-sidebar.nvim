@@ -62,19 +62,25 @@ the keybindings that apply to the node under the cursor. Default keys
     p          Pause                 (deployment, service, container)
     P          Unpause               (deployment, service, container)
     d          Remove (confirms)     (service, container)
-    l          Logs (follow)         (service, container)
+    l          Logs (follow)         (deployment, service, container)
     e          Exec shell            (service, container)
     u          Up (compose up -d)    (deployment)
     U          Down (confirms)       (deployment)
+    E          Open compose file in the main window (deployment)
+    i          Inspect (view JSON) in the main window (network, volume)
 
 Pressing an action key on a node that doesn't support it (e.g. `u`/`U` on a
-service node, or any action on a network/volume node) shows a warning
+service node, or `i` on anything but a network/volume node) shows a warning
 instead of doing nothing silently.
 
 A scaled service (`docker compose up --scale <service>=N`) shows up as one
 expandable node regardless of replica count. Actions on it target the whole
 service via `docker compose`; expand it and act on a container child
 directly to target just that one replica.
+
+`l` (logs) on a deployment node follows every service's output at once
+(`docker compose logs -f`); press it on a service or container instead to
+follow just that one.
 
 ==============================================================================
 5. Health                                            *docker-sidebar-health*

@@ -32,6 +32,8 @@ local C = {
 				exec = { "e" },
 				up = { "u" },
 				down = { "U" },
+				edit = { "E" },
+				inspect = { "i" },
 				help = { "?" },
 			},
 			-- Gate deployment `down` and service/container `remove` behind a vim.fn.confirm prompt

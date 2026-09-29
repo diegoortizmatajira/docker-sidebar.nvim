@@ -86,6 +86,7 @@ describe("node construction", function()
 		assert.are.equal("myapp", node.project)
 		assert.are.equal("/project", node.cwd)
 		assert.are.equal("(running)", node.description)
+		assert.are.equal("/project/docker-compose.yml", node.config_file)
 		assert.is_true(node:has_children())
 		assert.are.equal(3, #node:get_child_ids())
 
@@ -102,6 +103,16 @@ describe("node construction", function()
 			return child.kind == "volumes_group"
 		end)
 		assert.are.equal(1, volumes_node.count)
+	end)
+
+	it("carries the real Docker object name on network/volume nodes for inspect", function()
+		local network_node = nodes.new_network_node(deployment.networks[1])
+		assert.are.equal("myapp_default", network_node.docker_name)
+		assert.are.equal("default", network_node.text) -- shows the shorter compose_name
+
+		local volume_node = nodes.new_volume_node(deployment.volumes[1])
+		assert.are.equal("myapp_db-data", volume_node.docker_name)
+		assert.are.equal("db-data", volume_node.text)
 	end)
 
 	it("collapses a scaled service's replicas into one expandable service node", function()
@@ -237,7 +248,17 @@ describe("nodes.build_command_spec", function()
 			end)
 		end
 
-		for _, action in ipairs({ "remove", "logs", "exec" }) do
+		it("logs", function()
+			assert.are.same({
+				cmd = "docker",
+				args = { "compose", "-p", "myapp", "logs", "-f" },
+				cwd = "/project",
+				task_name = "Logs: myapp",
+				mode = "interactive",
+			}, nodes.build_command_spec("logs", node))
+		end)
+
+		for _, action in ipairs({ "remove", "exec" }) do
 			it(action .. " is unsupported on a deployment node", function()
 				assert.is_nil(nodes.build_command_spec(action, node))
 			end)
@@ -354,6 +375,7 @@ describe("nodes.supported_actions", function()
 			restart = true,
 			pause = true,
 			unpause = true,
+			logs = true,
 		}, nodes.supported_actions("deployment"))
 	end)
 

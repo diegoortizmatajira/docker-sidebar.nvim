@@ -35,6 +35,8 @@ describe("config", function()
 				"help",
 				"up",
 				"down",
+				"edit",
+				"inspect",
 			}
 			for _, action in ipairs(actions) do
 				assert.is_table(kb[action], "missing keybinding for: " .. action)

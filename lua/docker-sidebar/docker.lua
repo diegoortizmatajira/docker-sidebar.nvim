@@ -144,4 +144,18 @@ function M._parse_compose_status(status)
 	return state, tonumber(count) or 0
 end
 
+--- @param name string
+--- @return string[]|nil lines Pretty-printed `docker network inspect` output, split into lines; nil on failure
+function M.inspect_network(name)
+	local lines, ok = run({ "network", "inspect", name })
+	return ok and lines or nil
+end
+
+--- @param name string
+--- @return string[]|nil lines Pretty-printed `docker volume inspect` output, split into lines; nil on failure
+function M.inspect_volume(name)
+	local lines, ok = run({ "volume", "inspect", name })
+	return ok and lines or nil
+end
+
 return M

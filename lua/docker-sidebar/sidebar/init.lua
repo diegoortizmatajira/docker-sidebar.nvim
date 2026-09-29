@@ -1,4 +1,5 @@
 local config = require("docker-sidebar.config")
+local docker = require("docker-sidebar.docker")
 local nodes = require("docker-sidebar.sidebar.nodes")
 local runner = require("docker-sidebar.runner")
 
@@ -10,6 +11,9 @@ local Split = require("nui.split")
 local M = {
 	split = nil,
 	tree = nil,
+	-- Window the sidebar was last opened/shown from, so the compose file for a deployment can
+	-- be opened there instead of always splitting.
+	previous_winid = nil,
 }
 
 local ACTIONS = { "start", "stop", "restart", "pause", "unpause", "remove", "logs", "exec", "up", "down" }
@@ -108,6 +112,59 @@ local function dispatch_action(action)
 	end
 end
 
+--- Switches to the window the sidebar was opened/shown from, falling back to a new full-width
+--- split if that window is gone (e.g. it was closed), so the compose file never ends up
+--- squeezed into the narrow sidebar column.
+local function switch_to_main_window()
+	if M.previous_winid and vim.api.nvim_win_is_valid(M.previous_winid) then
+		vim.api.nvim_set_current_win(M.previous_winid)
+		return
+	end
+	vim.cmd("botright new")
+end
+
+--- Opens a deployment's compose file in the main editor window.
+--- @param node DockerSidebar.SidebarNodeData|NuiTree.Node|nil
+local function open_compose_file(node)
+	if not node or node.kind ~= "deployment" then
+		vim.notify("DockerSidebar: select a deployment node to open its compose file", vim.log.levels.WARN)
+		return
+	end
+	if not node.config_file then
+		vim.notify("DockerSidebar: no compose file known for this deployment", vim.log.levels.WARN)
+		return
+	end
+	switch_to_main_window()
+	vim.cmd.edit(vim.fn.fnameescape(node.config_file))
+end
+
+--- Opens `docker network/volume inspect` output for a network or volume node in a read-only
+--- scratch buffer in the main window. Not a pluggable-runner action (start/stop/.../up/down)
+--- -- this is a synchronous read, not a mutating command, so it always runs the same way
+--- regardless of the configured `runner` (the JSON should land in a real buffer, not an
+--- overseer terminal pane or wherever a custom runner happens to send it).
+--- @param node DockerSidebar.SidebarNodeData|NuiTree.Node|nil
+local function inspect_node(node)
+	if not node or (node.kind ~= "network" and node.kind ~= "volume") then
+		vim.notify("DockerSidebar: select a network or volume node to inspect", vim.log.levels.WARN)
+		return
+	end
+	local lines = (node.kind == "network" and docker.inspect_network or docker.inspect_volume)(node.docker_name)
+	if not lines then
+		return -- docker.lua already notified on failure
+	end
+	switch_to_main_window()
+	vim.cmd("enew")
+	local bufnr = vim.api.nvim_get_current_buf()
+	vim.bo[bufnr].buftype = "nofile"
+	vim.bo[bufnr].bufhidden = "wipe"
+	vim.bo[bufnr].swapfile = false
+	vim.bo[bufnr].filetype = "json"
+	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+	vim.bo[bufnr].modifiable = false
+	pcall(vim.api.nvim_buf_set_name, bufnr, string.format("docker-inspect://%s/%s", node.kind, node.docker_name))
+end
+
 --- Builds the help window's contents: the always-available navigation keys, then the action
 --- keys that apply to the node under the cursor. When no node is focused (or its kind isn't
 --- recognized), every action is listed unfiltered.
@@ -130,6 +187,15 @@ local function build_help_lines(node)
 			table.insert(lines, string.format("  %-10s %s", table.concat(kb[action], "/"), ACTION_DESCRIPTIONS[action]))
 			shown_any = true
 		end
+	end
+	-- Not runner actions (no CommandSpec), so they aren't tracked by nodes.supported_actions.
+	if not node or node.kind == "deployment" then
+		table.insert(lines, string.format("  %-10s %s", table.concat(kb.edit, "/"), "Open compose file"))
+		shown_any = true
+	end
+	if not node or node.kind == "network" or node.kind == "volume" then
+		table.insert(lines, string.format("  %-10s %s", table.concat(kb.inspect, "/"), "Inspect (view JSON)"))
+		shown_any = true
 	end
 	if not shown_any then
 		table.insert(lines, "  (no actions apply to this node)")
@@ -179,6 +245,7 @@ function M.init()
 		vim.notify("DockerSidebar: Configuration not found.", vim.log.levels.ERROR)
 		return
 	end
+	M.previous_winid = vim.api.nvim_get_current_win()
 	M.split = Split({ relative = "editor", position = "right", size = "40%" })
 	M.split:mount()
 
@@ -262,6 +329,16 @@ function M.init()
 	for _, key in ipairs(kb.help) do
 		M.split:map("n", key, show_help)
 	end
+	for _, key in ipairs(kb.edit) do
+		M.split:map("n", key, function()
+			open_compose_file(M.tree:get_node())
+		end)
+	end
+	for _, key in ipairs(kb.inspect) do
+		M.split:map("n", key, function()
+			inspect_node(M.tree:get_node())
+		end)
+	end
 	for _, action in ipairs(ACTIONS) do
 		for _, key in ipairs(kb[action]) do
 			M.split:map("n", key, function()
@@ -300,6 +377,7 @@ function M.toggle()
 		if M.split.winid and vim.api.nvim_win_is_valid(M.split.winid) then
 			M.split:hide()
 		else
+			M.previous_winid = vim.api.nvim_get_current_win()
 			M.split:show()
 		end
 	else
