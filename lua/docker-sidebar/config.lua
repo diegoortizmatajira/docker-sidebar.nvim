@@ -39,8 +39,8 @@ local C = {
 
 		icons = {
 			tree = {
-				chevron_open = " ",
-				chevron_closed = " ",
+				chevron_open = " ",
+				chevron_closed = " ",
 				deployments_group = " ",
 				standalone_group = " ",
 				deployment = "󰡨 ",
@@ -53,11 +53,11 @@ local C = {
 				volume = "󰆺 ",
 			},
 			status = {
-				running = "●",
-				stopped = "○",
-				paused = "⏸",
-				restarting = "↻",
-				other = "?",
+				running = "● ",
+				stopped = "○ ",
+				paused = "⏸ ",
+				restarting = "↻ ",
+				other = "? ",
 			},
 		},
 
