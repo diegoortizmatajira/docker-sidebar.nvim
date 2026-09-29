@@ -178,4 +178,22 @@ describe("docker_core", function()
 			assert.are.equal("box", standalone[1].name)
 		end)
 	end)
+
+	describe("aggregate_state", function()
+		it("returns stopped for an empty list", function()
+			assert.are.equal("stopped", docker_core.aggregate_state({}))
+		end)
+
+		it("returns running when every container is running", function()
+			assert.are.equal("running", docker_core.aggregate_state({ { state = "running" }, { state = "running" } }))
+		end)
+
+		it("returns stopped when every container is stopped", function()
+			assert.are.equal("stopped", docker_core.aggregate_state({ { state = "stopped" }, { state = "stopped" } }))
+		end)
+
+		it("returns partial when replicas disagree", function()
+			assert.are.equal("partial", docker_core.aggregate_state({ { state = "running" }, { state = "stopped" } }))
+		end)
+	end)
 end)

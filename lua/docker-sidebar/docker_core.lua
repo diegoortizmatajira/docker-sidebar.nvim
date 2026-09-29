@@ -6,9 +6,11 @@ local docker = require("docker-sidebar.docker")
 --- (live-vs-scanned precedence, synthesizing "down" deployments) is independently testable.
 local M = {}
 
+--- Aggregates a set of containers' individual states into one bucket. Exposed publicly since
+--- `sidebar/nodes.lua` reuses it to compute a per-service icon for a scaled service's replicas.
 --- @param containers DockerSidebar.ContainerInfo[]
 --- @return "running"|"partial"|"stopped"
-local function aggregate_state(containers)
+function M.aggregate_state(containers)
 	if #containers == 0 then
 		return "stopped"
 	end
@@ -59,7 +61,7 @@ local function build_live_deployment(live, scan_info)
 	end
 	return {
 		project = project,
-		state = aggregate_state(containers),
+		state = M.aggregate_state(containers),
 		config_file = config_file,
 		cwd = scan_info and scan_info.cwd or nil,
 		containers = containers,

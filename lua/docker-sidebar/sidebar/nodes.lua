@@ -20,9 +20,9 @@ local M = {
 --- @field expandable? boolean Whether the node can be expanded to show children
 --- @field project? string Compose project name, present on deployment/service/network/volume nodes
 --- @field service? string Compose service name, present on service nodes
---- @field container_id? string The container id, present on service nodes once created and on container nodes
+--- @field container_id? string The container id, present on container nodes once created
 --- @field cwd? string The deployment's compose-file directory, present on deployment/service nodes
---- @field state? "running"|"stopped"|"paused"|"restarting"|"other" Container status, present on service/container nodes
+--- @field state? "running"|"stopped"|"paused"|"restarting"|"other" Container status, present on container nodes
 --- @field refresh? fun(self: DockerSidebar.SidebarNodeData|NuiTree.Node, tree: NuiTree): nil A function to refresh the node's contents
 
 --- @param state string|nil
@@ -58,35 +58,70 @@ function M.new_node(o, children)
 	return NuiTree.Node(o, children)
 end
 
+--- A compose service, expandable to show the container(s) actually running it -- a scaled
+--- service (`docker compose up --scale <service>=N`) has more than one. Actions on this node
+--- (start/stop/restart/.../exec) target the whole service via `docker compose ... <service>`;
+--- act on one specific replica instead by expanding it and acting on its container child.
 --- @param deployment DockerSidebar.DeploymentInfo
---- @param container DockerSidebar.ContainerInfo
+--- @param service_name string
+--- @param containers DockerSidebar.ContainerInfo[] This service's replica container(s), at least one
 --- @return DockerSidebar.SidebarNodeData|NuiTree.Node
-function M.new_service_node(deployment, container)
-	-- A scaled service (`docker compose up --scale <service>=N`) reports one container per
-	-- replica, all sharing `container.service` -- key by the (unique) container name instead,
-	-- falling back to the service name for a synthesized (never-created) container.
-	local unique_key = (container.name ~= "" and container.name) or container.service
+function M.new_service_node(deployment, service_name, containers)
+	local children = {}
+	for _, container in ipairs(containers) do
+		table.insert(children, M.new_container_node(container, deployment.project .. "_"))
+	end
+
+	local state = docker_core.aggregate_state(containers)
+	local description
+	if #containers > 1 then
+		if state == "partial" then
+			local running = 0
+			for _, container in ipairs(containers) do
+				if container.state == "running" then
+					running = running + 1
+				end
+			end
+			description = string.format("(%d/%d running)", running, #containers)
+		else
+			description = string.format("(%d replicas)", #containers)
+		end
+	end
+
 	return M.new_node({
-		id = "service_" .. deployment.project .. "_" .. unique_key,
+		id = "service_" .. deployment.project .. "_" .. service_name,
 		kind = "service",
-		icon = status_icon(container.state),
-		icon_hl = status_hl(container.state),
-		text = container.service,
-		description = container.status,
+		icon = status_icon(state),
+		icon_hl = status_hl(state),
+		text = service_name,
+		description = description,
 		project = deployment.project,
-		service = container.service,
-		container_id = (container.id ~= "" and container.id) or nil,
+		service = service_name,
 		cwd = deployment.cwd,
-		state = container.state,
-	})
+		expandable = true,
+	}, children)
 end
 
+--- Groups a deployment's containers by `service` (a scaled service reports one container per
+--- replica, all sharing the same service name) so each service shows up once, expandable to
+--- reveal its replica(s).
 --- @param deployment DockerSidebar.DeploymentInfo
 --- @return DockerSidebar.SidebarNodeData|NuiTree.Node
 function M.new_services_group_node(deployment)
-	local children = {}
+	local containers_by_service = {}
+	local service_names = {}
 	for _, container in ipairs(deployment.containers) do
-		table.insert(children, M.new_service_node(deployment, container))
+		if not containers_by_service[container.service] then
+			containers_by_service[container.service] = {}
+			table.insert(service_names, container.service)
+		end
+		table.insert(containers_by_service[container.service], container)
+	end
+	table.sort(service_names)
+
+	local children = {}
+	for _, service_name in ipairs(service_names) do
+		table.insert(children, M.new_service_node(deployment, service_name, containers_by_service[service_name]))
 	end
 	return M.new_node({
 		id = "services_" .. deployment.project,
@@ -236,16 +271,20 @@ function M.new_deployments_group_node()
 end
 
 --- @param container DockerSidebar.ContainerInfo
+--- @param id_prefix? string Extra uniqueness prefix for a synthesized (never-created) container
+---   -- its `id` is empty and its `name` (the service name) could otherwise collide with a
+---   same-named service in a different "down" deployment
 --- @return DockerSidebar.SidebarNodeData|NuiTree.Node
-function M.new_container_node(container)
+function M.new_container_node(container, id_prefix)
+	local container_id = (container.id ~= "" and container.id) or nil
 	return M.new_node({
-		id = "container_" .. container.id,
+		id = "container_" .. (container_id or ((id_prefix or "") .. container.name)),
 		kind = "container",
 		icon = status_icon(container.state),
 		icon_hl = status_hl(container.state),
 		text = container.name,
 		description = container.status,
-		container_id = container.id,
+		container_id = container_id,
 		state = container.state,
 	})
 end
@@ -498,6 +537,10 @@ local builders = {
 --- @param node DockerSidebar.SidebarNodeData|NuiTree.Node
 --- @return DockerSidebar.CommandSpec|nil
 function M.build_command_spec(action, node)
+	if node.kind == "container" and not node.container_id then
+		vim.notify("DockerSidebar: this container hasn't been created yet", vim.log.levels.WARN)
+		return nil
+	end
 	local kind_builders = node.kind and builders[node.kind]
 	local builder = kind_builders and kind_builders[action]
 	if not builder then

@@ -71,6 +71,11 @@ Pressing an action key on a node that doesn't support it (e.g. `u`/`U` on a
 service node, or any action on a network/volume node) shows a warning
 instead of doing nothing silently.
 
+A scaled service (`docker compose up --scale <service>=N`) shows up as one
+expandable node regardless of replica count. Actions on it target the whole
+service via `docker compose`; expand it and act on a container child
+directly to target just that one replica.
+
 ==============================================================================
 5. Health                                            *docker-sidebar-health*
 

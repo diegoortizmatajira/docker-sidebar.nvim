@@ -207,7 +207,9 @@ Networks and volumes are informational nodes in this version — no actions yet.
  Deployments
 ├──  project-a (running)
 │   ├──  Services
-│   │   ├──  web (running)
+│   │   ├──  web (2 replicas)
+│   │   │   ├──  project-a-web-1 (running)
+│   │   │   └──  project-a-web-2 (running)
 │   │   └──  db (stopped)
 │   ├──  Networks
 │   │   └──  project-a_default
@@ -219,6 +221,12 @@ Networks and volumes are informational nodes in this version — no actions yet.
 ├──  some-container (running)
 └──  another-container (paused)
 ```
+
+Each service is a single, expandable node — even a scaled service (`docker compose up
+--scale web=2`) shows up once, expandable to reveal the container(s) actually running it.
+Actions on the service node (start/stop/restart/...) target the whole service via
+`docker compose`; act on one specific replica instead by expanding it and acting on its
+container child directly.
 
 Deployments and Standalone Containers are two independent top-level groups — there's no
 enclosing "Docker" root node, since the whole sidebar is already Docker-specific.

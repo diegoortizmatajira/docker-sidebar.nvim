@@ -57,6 +57,14 @@ describe("node construction", function()
 		containers = {
 			{ id = "abc", name = "myapp-web-1", image = "nginx", state = "running", status = "Up", service = "web" },
 			{
+				id = "abd",
+				name = "myapp-web-2",
+				image = "nginx",
+				state = "running",
+				status = "Up",
+				service = "web",
+			},
+			{
 				id = "def",
 				name = "myapp-db-1",
 				image = "postgres",
@@ -84,6 +92,7 @@ describe("node construction", function()
 		local services_node = find_child(tree, node, function(child)
 			return child.kind == "services_group"
 		end)
+		-- 2 distinct services (web, db), even though "web" has 2 replica containers
 		assert.are.equal(2, services_node.count)
 		local networks_node = find_child(tree, node, function(child)
 			return child.kind == "networks_group"
@@ -95,35 +104,77 @@ describe("node construction", function()
 		assert.are.equal(1, volumes_node.count)
 	end)
 
-	it("gives service nodes a status icon reflecting container state", function()
+	it("collapses a scaled service's replicas into one expandable service node", function()
 		local services_node = nodes.new_services_group_node(deployment)
 		local tree, bufnr = build_tree(services_node)
 		table.insert(bufnrs, bufnr)
 
-		local child_ids = services_node:get_child_ids()
-		assert.are.equal(2, #child_ids)
+		-- one node per distinct service, not one per container
+		assert.are.equal(2, #services_node:get_child_ids())
+
 		local web_node = find_child(tree, services_node, function(child)
 			return child.service == "web"
 		end)
+		assert.are.equal("service", web_node.kind)
+		assert.is_true(web_node:has_children())
+		assert.are.equal(2, #web_node:get_child_ids())
+		assert.are.equal("(2 replicas)", web_node.description)
 		assert.are.equal(config.current.icons.status.running, web_node.icon)
+
+		local web_containers = web_node:get_child_ids()
+		local first_replica = tree:get_node(web_containers[1])
+		assert.are.equal("container", first_replica.kind)
+		assert.is_not_nil(first_replica.container_id)
+
 		local db_node = find_child(tree, services_node, function(child)
 			return child.service == "db"
 		end)
+		assert.are.equal(1, #db_node:get_child_ids())
+		assert.is_nil(db_node.description) -- no "(N replicas)" note for a single-instance service
 		assert.are.equal(config.current.icons.status.stopped, db_node.icon)
+	end)
+
+	it("shows a partial icon note when a scaled service's replicas disagree", function()
+		local mixed_deployment = {
+			project = "myapp",
+			cwd = "/project",
+			containers = {
+				{ id = "a", name = "myapp-web-1", image = "nginx", state = "running", status = "Up", service = "web" },
+				{
+					id = "b",
+					name = "myapp-web-2",
+					image = "nginx",
+					state = "stopped",
+					status = "Exited",
+					service = "web",
+				},
+			},
+			networks = {},
+			volumes = {},
+		}
+		local services_node = nodes.new_services_group_node(mixed_deployment)
+		local tree, bufnr = build_tree(services_node)
+		table.insert(bufnrs, bufnr)
+
+		local web_node = find_child(tree, services_node, function(child)
+			return child.service == "web"
+		end)
+		assert.are.equal("(1/2 running)", web_node.description)
 	end)
 
 	it("leaves container_id nil for a synthesized (never-created) service", function()
 		local synthesized_deployment = {
 			project = "neverstarted",
-			state = "down",
+			cwd = "/scanned",
 			containers = {
 				{ id = "", name = "web", image = "", state = "stopped", status = "not created", service = "web" },
 			},
 			networks = {},
 			volumes = {},
 		}
-		local service_node = nodes.new_service_node(synthesized_deployment, synthesized_deployment.containers[1])
-		assert.is_nil(service_node.container_id)
+		local service_node = nodes.new_service_node(synthesized_deployment, "web", synthesized_deployment.containers)
+		local container_child = service_node.__children[1]
+		assert.is_nil(container_child.container_id)
 	end)
 
 	it("attaches Deployments and Standalone Containers directly as tree roots (no wrapping node)", function()
