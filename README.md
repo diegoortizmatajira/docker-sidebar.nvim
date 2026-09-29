@@ -85,10 +85,13 @@ require('docker-sidebar').setup({
             pause         = { 'p' },
             unpause       = { 'P' },
             remove        = { 'd' },
-            logs          = { 'l' },
+            logs          = { 'L' },
             exec          = { 'e' },
             up            = { 'u' },
             down          = { 'U' },
+            edit          = { 'E' },
+            inspect       = { 'i' },
+            help          = { '?' },
         },
         -- Gate deployment `down` and service/container `remove` behind a confirmation prompt
         confirm_destructive = true,
@@ -193,7 +196,7 @@ Once the sidebar is open, the following keys are available (configurable via
 | `p`            | Pause                  | deployment, service, container        |
 | `P`            | Unpause                | deployment, service, container        |
 | `d`            | Remove (confirms)      | service, container                    |
-| `l`            | Logs (follow)          | deployment, service, container         |
+| `L`            | Logs (follow)          | deployment, service, container         |
 | `e`            | Exec shell             | service, container                    |
 | `u`            | Up (`compose up -d`)   | deployment                            |
 | `U`            | Down (confirms)        | deployment                            |
@@ -203,7 +206,7 @@ Once the sidebar is open, the following keys are available (configurable via
 Pressing an action key on a node that doesn't support it (e.g. `u`/`U` on a service node, or
 `i` on anything but a network/volume node) shows a warning instead of doing nothing silently.
 
-`l` (logs) follows every service's output at once when pressed on a deployment node
+`L` (logs) follows every service's output at once when pressed on a deployment node
 (`docker compose logs -f`); press it on a service or container instead to follow just that
 one.
 

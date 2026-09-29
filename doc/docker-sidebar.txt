@@ -62,7 +62,7 @@ the keybindings that apply to the node under the cursor. Default keys
     p          Pause                 (deployment, service, container)
     P          Unpause               (deployment, service, container)
     d          Remove (confirms)     (service, container)
-    l          Logs (follow)         (deployment, service, container)
+    L          Logs (follow)         (deployment, service, container)
     e          Exec shell            (service, container)
     u          Up (compose up -d)    (deployment)
     U          Down (confirms)       (deployment)
@@ -78,7 +78,7 @@ expandable node regardless of replica count. Actions on it target the whole
 service via `docker compose`; expand it and act on a container child
 directly to target just that one replica.
 
-`l` (logs) on a deployment node follows every service's output at once
+`L` (logs) on a deployment node follows every service's output at once
 (`docker compose logs -f`); press it on a service or container instead to
 follow just that one.
 
