@@ -95,6 +95,13 @@ require('docker-sidebar').setup({
         },
         -- Gate deployment `down` and service/container `remove` behind a confirmation prompt
         confirm_destructive = true,
+        -- Hide the sidebar when an action runs: a boolean (true for every action), or a
+        -- per-action table (set an action to true to hide the panel when it runs)
+        hide_panel_on_run = {
+            start = false, stop = false, restart = false, pause = false, unpause = false,
+            remove = false, logs = false, exec = false, up = false, down = false,
+            edit = false, inspect = false,
+        },
     },
 
     -- Icons used in the sidebar (per node kind, plus per container/service status)

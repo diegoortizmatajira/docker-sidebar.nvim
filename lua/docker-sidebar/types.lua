@@ -77,6 +77,7 @@
 --- @class DockerSidebar.SidebarConfig
 --- @field keybindings DockerSidebar.SidebarKeybindingsConfig
 --- @field confirm_destructive boolean Prompt before deployment `down` / service or container `remove`
+--- @field hide_panel_on_run boolean|table<string, boolean> Hide the sidebar when an action runs: true for all actions, or a per-action map (e.g. `{ logs = true, exec = true }`); unlisted actions don't hide
 
 --- @class DockerSidebar.IconsConfig
 --- @field tree table<string, string>
