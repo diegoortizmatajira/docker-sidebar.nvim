@@ -83,6 +83,25 @@ local function confirm_if_destructive(action, node)
 	return choice == 1
 end
 
+--- Whether `sidebar.hide_panel_on_run` asks for the panel to be hidden when `action` runs.
+--- @param action string
+--- @return boolean
+local function should_hide_on_run(action)
+	local setting = config.current.sidebar.hide_panel_on_run
+	if type(setting) == "table" then
+		return setting[action] == true
+	end
+	return setting == true
+end
+
+--- Hides the sidebar window if `sidebar.hide_panel_on_run` asks for it for `action`.
+--- @param action string
+local function hide_panel_if_configured(action)
+	if should_hide_on_run(action) and M.split and M.split.winid and vim.api.nvim_win_is_valid(M.split.winid) then
+		M.split:hide()
+	end
+end
+
 --- Dispatches `action` on the node under the cursor: builds a command spec, confirms
 --- destructive actions, runs it through `runner.run`, and refreshes the nearest ancestor with
 --- a `refresh` function once a background action completes.
@@ -99,6 +118,7 @@ local function dispatch_action(action)
 	if not confirm_if_destructive(action, node) then
 		return
 	end
+	hide_panel_if_configured(action)
 	if spec.mode == "background" then
 		runner.run(spec, function(result)
 			vim.schedule(function()
@@ -135,6 +155,7 @@ local function open_compose_file(node)
 		return
 	end
 	switch_to_main_window()
+	hide_panel_if_configured("edit")
 	vim.cmd.edit(vim.fn.fnameescape(node.config_file))
 end
 
@@ -154,6 +175,7 @@ local function inspect_node(node)
 		return -- docker.lua already notified on failure
 	end
 	switch_to_main_window()
+	hide_panel_if_configured("inspect")
 	vim.cmd("enew")
 	local bufnr = vim.api.nvim_get_current_buf()
 	vim.bo[bufnr].buftype = "nofile"

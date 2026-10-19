@@ -38,6 +38,22 @@ local C = {
 			},
 			-- Gate deployment `down` and service/container `remove` behind a vim.fn.confirm prompt
 			confirm_destructive = true,
+			-- Hide the sidebar when an action runs. Either a boolean (true -> every action) or a
+			-- per-action table; set an action to true to hide the panel when it runs
+			hide_panel_on_run = {
+				start = false,
+				stop = false,
+				restart = false,
+				pause = false,
+				unpause = false,
+				remove = false,
+				logs = false,
+				exec = false,
+				up = false,
+				down = false,
+				edit = false,
+				inspect = false,
+			},
 		},
 
 		icons = {

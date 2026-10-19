@@ -47,6 +47,26 @@ describe("config", function()
 			assert.is_true(config.default.sidebar.confirm_destructive)
 		end)
 
+		it("defaults sidebar.hide_panel_on_run to false for every action", function()
+			local expected = {
+				"start",
+				"stop",
+				"restart",
+				"pause",
+				"unpause",
+				"remove",
+				"logs",
+				"exec",
+				"up",
+				"down",
+				"edit",
+				"inspect",
+			}
+			for _, action in ipairs(expected) do
+				assert.is_false(config.default.sidebar.hide_panel_on_run[action])
+			end
+		end)
+
 		it("has icon and status icon configurations", function()
 			assert.is_table(config.default.icons.tree)
 			assert.is_table(config.default.icons.status)
